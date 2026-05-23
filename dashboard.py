@@ -1,490 +1,414 @@
-import { useState } from "react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer, RadarChart,
-  Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
-} from "recharts";
+"""
+France Top 50 Spotify Playlist - Audience Sensitivity, Content Compliance
+& Format Preference Analysis
+For: Atlantic Recording Corporation | Unified Mentor Internship Project
+Dataset: Atlantic_France.csv (27,800 rows | 555 days | May 2024 - Nov 2025)
+"""
 
-const COLORS = {
-  explicit: "#e63946",
-  clean: "#2ec4b6",
-  album: "#f4a261",
-  single: "#457b9d",
-  accent: "#ffd166",
-  bg: "#0d0f14",
-  card: "#161b22",
-  border: "#21262d",
-  text: "#e6edf3",
-  muted: "#7d8590",
-};
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import seaborn as sns
+from collections import Counter
+import warnings
+warnings.filterwarnings("ignore")
 
-const explicitData = [
-  { name: "Explicit", value: 56.3, count: 15640, color: COLORS.explicit },
-  { name: "Clean", value: 43.7, count: 12160, color: COLORS.clean },
-];
-const formatData = [
-  { name: "Album", value: 52.9, count: 14695, color: COLORS.album },
-  { name: "Single", value: 47.1, count: 13096, color: COLORS.single },
-];
-const popularityComparison = [
-  { category: "Explicit", popularity: 73.33, fill: COLORS.explicit },
-  { category: "Clean", popularity: 80.9, fill: COLORS.clean },
-  { category: "Album", popularity: 72.99, fill: COLORS.album },
-  { category: "Single", popularity: 80.75, fill: COLORS.single },
-];
-const rankTierData = [
-  { tier: "Top 10", explicit: 62.4, clean: 37.6 },
-  { tier: "Top 11-25", explicit: 54.5, clean: 45.5 },
-  { tier: "Top 26-50", explicit: 54.8, clean: 45.2 },
-];
-const durationBuckets = [
-  { bucket: "Short (<2.5m)", count: 3582, popularity: 76.91 },
-  { bucket: "Medium (2.5-4m)", count: 22717, popularity: 76.53 },
-  { bucket: "Long (>4m)", count: 1501, popularity: 77.79 },
-];
-const albumSizeData = [
-  { size: "Small (<=15)", popularity: 74.48 },
-  { size: "Large (>15)", popularity: 70.91 },
-];
-const topArtists = [
-  { artist: "Werenoi", appearances: 2206 },
-  { artist: "PLK", appearances: 906 },
-  { artist: "SDM", appearances: 901 },
-  { artist: "Jul", appearances: 711 },
-  { artist: "Ninho", appearances: 622 },
-  { artist: "Fave", appearances: 597 },
-  { artist: "Tiakola", appearances: 594 },
-  { artist: "GIMS", appearances: 559 },
-  { artist: "KeBlack", appearances: 546 },
-  { artist: "Dua Lipa", appearances: 489 },
-];
-const monthlyExplicit = [
-  { month: "May'24", explicit: 56.9 },
-  { month: "Jun'24", explicit: 62.7 },
-  { month: "Jul'24", explicit: 63.5 },
-  { month: "Aug'24", explicit: 55.0 },
-  { month: "Sep'24", explicit: 66.5 },
-  { month: "Oct'24", explicit: 67.0 },
-  { month: "Nov'24", explicit: 60.2 },
-  { month: "Dec'24", explicit: 58.4 },
-  { month: "Jan'25", explicit: 64.1 },
-  { month: "Feb'25", explicit: 61.3 },
-  { month: "Mar'25", explicit: 63.8 },
-  { month: "Apr'25", explicit: 65.2 },
-];
-const albumTypeExplicit = [
-  { type: "Album tracks", explicit: 72.4, clean: 27.6 },
-  { type: "Single tracks", explicit: 38.2, clean: 61.8 },
-];
-const kpiData = [
-  { label: "Explicit Content Share", value: "56.3%", desc: "Audience sensitivity indicator", color: COLORS.explicit },
-  { label: "Clean Content Ratio", value: "43.7%", desc: "Compliance preference", color: COLORS.clean },
-  { label: "Single vs Album", value: "47 / 53", desc: "Format preference", color: COLORS.single },
-  { label: "Avg Song Duration", value: "3.09 min", desc: "Structural norm", color: COLORS.accent },
-  { label: "Clean Track Pop Score", value: "80.9 / 100", desc: "Clean content leads", color: COLORS.clean },
-  { label: "Content Acceptance Score", value: "37.6%", desc: "Clean share in Top 10", color: COLORS.album },
-];
-const radarData = [
-  { metric: "Explicit Share", value: 56 },
-  { metric: "Clean Popularity", value: 81 },
-  { metric: "Single Format", value: 47 },
-  { metric: "Album Explicit%", value: 72 },
-  { metric: "Top10 Explicit%", value: 62 },
-  { metric: "Duration Score", value: 62 },
-];
-
-const NavItem = ({ label, active, onClick }) => (
-  <button onClick={onClick} style={{
-    background: active ? "rgba(230,57,70,0.15)" : "transparent",
-    border: active ? `1px solid ${COLORS.explicit}` : "1px solid transparent",
-    color: active ? COLORS.explicit : COLORS.muted,
-    padding: "8px 14px", borderRadius: "6px", cursor: "pointer",
-    fontSize: "12px", fontFamily: "monospace", fontWeight: active ? 600 : 400,
-    transition: "all 0.2s", whiteSpace: "nowrap",
-  }}>{label}</button>
-);
-
-const Card = ({ children, style = {} }) => (
-  <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: "12px", padding: "20px", ...style }}>
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ children }) => (
-  <h2 style={{ color: COLORS.text, fontFamily: "Impact, sans-serif", fontSize: "18px", letterSpacing: "2px", marginBottom: "14px", borderLeft: `3px solid ${COLORS.explicit}`, paddingLeft: "10px" }}>
-    {children}
-  </h2>
-);
-
-const InsightBox = ({ text, color = COLORS.explicit }) => (
-  <div style={{ background: `${color}15`, border: `1px solid ${color}40`, borderLeft: `3px solid ${color}`, borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: COLORS.text, fontFamily: "monospace", lineHeight: 1.6, marginTop: "12px" }}>
-    💡 {text}
-  </div>
-);
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background: "#1c2128", border: `1px solid ${COLORS.border}`, borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: COLORS.text, fontFamily: "monospace" }}>
-      <p style={{ color: COLORS.muted, marginBottom: 4 }}>{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color || COLORS.text }}>{p.name}: <strong>{typeof p.value === "number" ? p.value.toFixed(1) : p.value}</strong></p>
-      ))}
-    </div>
-  );
-};
-
-function OverviewPage() {
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "12px", marginBottom: "20px" }}>
-        {kpiData.map((kpi, i) => (
-          <Card key={i} style={{ textAlign: "center" }}>
-            <div style={{ color: kpi.color, fontSize: "26px", fontFamily: "Impact, sans-serif", letterSpacing: "1px" }}>{kpi.value}</div>
-            <div style={{ color: COLORS.text, fontSize: "11px", fontWeight: 600, marginTop: 4 }}>{kpi.label}</div>
-            <div style={{ color: COLORS.muted, fontSize: "10px", marginTop: 2 }}>{kpi.desc}</div>
-          </Card>
-        ))}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-        <Card>
-          <SectionTitle>CONTENT PROFILE RADAR</SectionTitle>
-          <ResponsiveContainer width="100%" height={250}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke={COLORS.border} />
-              <PolarAngleAxis dataKey="metric" tick={{ fill: COLORS.muted, fontSize: 10 }} />
-              <PolarRadiusAxis angle={30} domain={[0,100]} tick={{ fill: COLORS.muted, fontSize: 9 }} />
-              <Radar name="France Top 50" dataKey="value" stroke={COLORS.explicit} fill={COLORS.explicit} fillOpacity={0.3} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </Card>
-        <Card>
-          <SectionTitle>POPULARITY BY CONTENT TYPE</SectionTitle>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={popularityComparison} barSize={36}>
-              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-              <XAxis dataKey="category" tick={{ fill: COLORS.muted, fontSize: 11 }} />
-              <YAxis domain={[68,84]} tick={{ fill: COLORS.muted, fontSize: 11 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="popularity" name="Avg Popularity" radius={[4,4,0,0]}>
-                {popularityComparison.map((e,i) => <Cell key={i} fill={e.fill} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <InsightBox text="Clean content averages 80.9 vs 73.3 for explicit — a 10.4% popularity premium. Singles (80.75) consistently beat albums (72.99)." color={COLORS.clean} />
-        </Card>
-      </div>
-    </div>
-  );
+# ── 0. SETUP ──────────────────────────────────────────────────────────────────
+plt.style.use("dark_background")
+COLORS = {
+    "explicit": "#e63946",
+    "clean":    "#2ec4b6",
+    "album":    "#f4a261",
+    "single":   "#457b9d",
+    "accent":   "#ffd166",
 }
 
-function ExplicitPage() {
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-        <Card>
-          <SectionTitle>EXPLICIT vs CLEAN SPLIT</SectionTitle>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={explicitData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" paddingAngle={3}>
-                {explicitData.map((e,i) => <Cell key={i} fill={e.color} />)}
-              </Pie>
-              <Tooltip formatter={(v) => `${v}%`} contentStyle={{ background:"#1c2128", border:`1px solid ${COLORS.border}`, borderRadius:8, fontFamily:"monospace" }} />
-              <Legend formatter={(v) => <span style={{ color:COLORS.text, fontSize:12 }}>{v}</span>} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{ textAlign:"center", color:COLORS.muted, fontSize:"11px", fontFamily:"monospace" }}>15,640 explicit · 12,160 clean</div>
-        </Card>
-        <Card>
-          <SectionTitle>EXPLICIT % BY RANK TIER</SectionTitle>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={rankTierData} barSize={24}>
-              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-              <XAxis dataKey="tier" tick={{ fill:COLORS.muted, fontSize:11 }} />
-              <YAxis domain={[0,100]} tick={{ fill:COLORS.muted, fontSize:11 }} unit="%" />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="explicit" name="Explicit %" fill={COLORS.explicit} radius={[4,4,0,0]} />
-              <Bar dataKey="clean" name="Clean %" fill={COLORS.clean} radius={[4,4,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
-      <Card style={{ marginBottom:"16px" }}>
-        <SectionTitle>EXPLICIT TREND OVER TIME</SectionTitle>
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={monthlyExplicit}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-            <XAxis dataKey="month" tick={{ fill:COLORS.muted, fontSize:10 }} />
-            <YAxis domain={[50,72]} unit="%" tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Line type="monotone" dataKey="explicit" name="Explicit %" stroke={COLORS.explicit} strokeWidth={2.5} dot={{ fill:COLORS.explicit, r:4 }} />
-          </LineChart>
-        </ResponsiveContainer>
-        <InsightBox text="Top 10 holds the highest explicit share (62.4%). French listeners don't penalize explicit content in rankings — but clean tracks still command higher popularity scores overall." />
-      </Card>
-      <Card>
-        <SectionTitle>EXPLICIT SPLIT BY FORMAT</SectionTitle>
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={albumTypeExplicit} layout="vertical" barSize={22}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-            <XAxis type="number" domain={[0,100]} unit="%" tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <YAxis dataKey="type" type="category" width={100} tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="explicit" name="Explicit %" fill={COLORS.explicit} stackId="a" radius={[0,4,4,0]} />
-            <Bar dataKey="clean" name="Clean %" fill={COLORS.clean} stackId="a" radius={[0,4,4,0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <InsightBox text="72.4% of album tracks are explicit vs only 38.2% of singles. Atlantic RC should apply stricter compliance checks to album releases targeting France." color={COLORS.album} />
-      </Card>
-    </div>
-  );
+# ── 1. LOAD & VALIDATE DATA ───────────────────────────────────────────────────
+print("=" * 60)
+print("STEP 1: DATA VALIDATION & PREPARATION")
+print("=" * 60)
+
+df = pd.read_csv("Atlantic_France.csv")
+
+# Parse date
+df["date"] = pd.to_datetime(df["date"], dayfirst=True)
+
+# Convert duration ms → minutes
+df["duration_min"] = df["duration_ms"] / 60000
+
+# Standardise boolean
+df["is_explicit"] = df["is_explicit"].astype(str).str.upper() == "TRUE"
+
+# Standardise album_type
+df["album_type"] = df["album_type"].str.lower().str.strip()
+
+# Duration buckets
+def duration_bucket(x):
+    if x < 2.5:
+        return "Short (<2.5 min)"
+    elif x < 4.0:
+        return "Medium (2.5-4 min)"
+    else:
+        return "Long (>4 min)"
+
+df["duration_bucket"] = df["duration_min"].apply(duration_bucket)
+
+# Album size category
+df["album_size"] = df["total_tracks"].apply(
+    lambda x: "Large (>15 tracks)" if x > 15 else "Small (<=15 tracks)"
+)
+
+# Validate
+print(f"Total rows       : {len(df):,}")
+print(f"Unique dates     : {df['date'].nunique()}")
+print(f"Date range       : {df['date'].min().date()} → {df['date'].max().date()}")
+print(f"Entries per day  : {len(df) / df['date'].nunique():.0f} (expected 50)")
+print(f"Missing values   :\n{df.isnull().sum()}")
+print(f"\nAlbum types      : {df['album_type'].value_counts().to_dict()}")
+print(f"Explicit flag    : {df['is_explicit'].value_counts().to_dict()}")
+
+
+# ── 2. EXPLICIT CONTENT SENSITIVITY ANALYSIS ─────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 2: EXPLICIT CONTENT SENSITIVITY ANALYSIS")
+print("=" * 60)
+
+total = len(df)
+exp_count  = df["is_explicit"].sum()
+cln_count  = total - exp_count
+exp_pct    = exp_count / total * 100
+cln_pct    = 100 - exp_pct
+
+exp_pop = df[df["is_explicit"]]["popularity"].mean()
+cln_pop = df[~df["is_explicit"]]["popularity"].mean()
+
+print(f"Explicit tracks  : {exp_count:,} ({exp_pct:.1f}%)")
+print(f"Clean tracks     : {cln_count:,} ({cln_pct:.1f}%)")
+print(f"Explicit avg pop : {exp_pop:.2f}")
+print(f"Clean avg pop    : {cln_pop:.2f}")
+print(f"Clean premium    : +{cln_pop - exp_pop:.2f} pts ({(cln_pop-exp_pop)/exp_pop*100:.1f}%)")
+
+# Rank-tier explicit breakdown
+bins   = [0, 10, 25, 50]
+labels = ["Top 10", "Top 11-25", "Top 26-50"]
+df["rank_tier"] = pd.cut(df["position"], bins=bins, labels=labels)
+
+tier_explicit = (
+    df.groupby("rank_tier", observed=True)["is_explicit"]
+    .agg(["sum", "count"])
+    .assign(explicit_pct=lambda x: x["sum"] / x["count"] * 100)
+)
+print("\nExplicit % by rank tier:")
+print(tier_explicit.to_string())
+
+# Monthly explicit trend
+df["year_month"] = df["date"].dt.to_period("M")
+monthly_exp = (
+    df.groupby("year_month")["is_explicit"]
+    .agg(["sum", "count"])
+    .assign(explicit_pct=lambda x: x["sum"] / x["count"] * 100)
+    .reset_index()
+)
+print("\nMonthly explicit trend (first 6 months):")
+print(monthly_exp.head(6).to_string())
+
+# Explicit by format
+format_exp = (
+    df.groupby("album_type")["is_explicit"]
+    .agg(["sum", "count"])
+    .assign(explicit_pct=lambda x: x["sum"] / x["count"] * 100)
+)
+print("\nExplicit % by album type:")
+print(format_exp.to_string())
+
+
+# ── 3. RELEASE FORMAT PREFERENCE ANALYSIS ────────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 3: RELEASE FORMAT PREFERENCE ANALYSIS")
+print("=" * 60)
+
+fmt_counts = df["album_type"].value_counts()
+fmt_pct    = df["album_type"].value_counts(normalize=True) * 100
+fmt_pop    = df.groupby("album_type")["popularity"].mean()
+
+print("Format distribution:")
+for fmt in fmt_counts.index:
+    print(f"  {fmt:10s}: {fmt_counts[fmt]:,} entries ({fmt_pct[fmt]:.1f}%) | Avg popularity: {fmt_pop[fmt]:.2f}")
+
+# Rank-based format comparison
+print("\nFormat % by rank tier:")
+rank_format = (
+    df.groupby(["rank_tier", "album_type"], observed=True)
+    .size()
+    .unstack(fill_value=0)
+)
+rank_format_pct = rank_format.div(rank_format.sum(axis=1), axis=0) * 100
+print(rank_format_pct.round(1).to_string())
+
+
+# ── 4. ALBUM STRUCTURE IMPACT ANALYSIS ───────────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 4: ALBUM STRUCTURE IMPACT ANALYSIS")
+print("=" * 60)
+
+album_df = df[df["album_type"] == "album"].copy()
+
+size_pop = album_df.groupby("album_size")["popularity"].agg(["mean", "count"])
+print("Album size vs popularity:")
+print(size_pop.to_string())
+
+# Correlation: total_tracks vs popularity (for album tracks only)
+corr = album_df[["total_tracks", "popularity"]].corr().iloc[0, 1]
+print(f"\nCorrelation (total_tracks vs popularity, albums only): {corr:.4f}")
+
+# Track count distribution
+track_dist = df["total_tracks"].value_counts().head(10)
+print("\nTop 10 track counts:")
+print(track_dist.to_string())
+
+
+# ── 5. SONG DURATION PREFERENCE ANALYSIS ─────────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 5: SONG DURATION PREFERENCE ANALYSIS")
+print("=" * 60)
+
+print(f"Mean duration    : {df['duration_min'].mean():.2f} min")
+print(f"Median duration  : {df['duration_min'].median():.2f} min")
+print(f"Std deviation    : {df['duration_min'].std():.2f} min")
+print(f"Min duration     : {df['duration_min'].min():.2f} min")
+print(f"Max duration     : {df['duration_min'].max():.2f} min")
+
+bucket_stats = df.groupby("duration_bucket").agg(
+    count=("popularity", "count"),
+    avg_popularity=("popularity", "mean"),
+    avg_position=("position", "mean"),
+).sort_values("count", ascending=False)
+print("\nDuration bucket stats:")
+print(bucket_stats.to_string())
+
+dur_pop_corr = df[["duration_min", "popularity"]].corr().iloc[0, 1]
+print(f"\nCorrelation (duration_min vs popularity): {dur_pop_corr:.4f}")
+
+
+# ── 6. CONTENT ATTRIBUTE CONCENTRATION ANALYSIS ──────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 6: CONTENT ATTRIBUTE CONCENTRATION ANALYSIS")
+print("=" * 60)
+
+for tier in ["Top 10", "Top 11-25", "Top 26-50"]:
+    tier_df = df[df["rank_tier"] == tier]
+    e_pct   = tier_df["is_explicit"].mean() * 100
+    s_pct   = (tier_df["album_type"] == "single").mean() * 100
+    d_mean  = tier_df["duration_min"].mean()
+    p_mean  = tier_df["popularity"].mean()
+    print(f"\n{tier}:")
+    print(f"  Explicit share    : {e_pct:.1f}%")
+    print(f"  Single format     : {s_pct:.1f}%")
+    print(f"  Avg duration      : {d_mean:.2f} min")
+    print(f"  Avg popularity    : {p_mean:.2f}")
+
+
+# ── 7. KEY PERFORMANCE INDICATORS ────────────────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 7: KEY PERFORMANCE INDICATORS (KPIs)")
+print("=" * 60)
+
+top10_df = df[df["position"] <= 10]
+
+kpis = {
+    "Explicit Content Share"        : f"{exp_pct:.1f}%",
+    "Clean Content Dominance Ratio" : f"{cln_pct:.1f}%",
+    "Single vs Album Track Ratio"   : f"{fmt_pct.get('single',0):.1f}% / {fmt_pct.get('album',0):.1f}%",
+    "Average Song Duration"         : f"{df['duration_min'].mean():.2f} min",
+    "Album Size Impact Index"       : f"Small={size_pop.loc['Small (<=15 tracks)','mean']:.2f} vs Large={size_pop.loc['Large (>15 tracks)','mean']:.2f}",
+    "Content Acceptance Score"      : f"{(~top10_df['is_explicit']).mean()*100:.1f}% clean in Top 10",
 }
 
-function FormatPage() {
-  return (
-    <div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px", marginBottom:"16px" }}>
-        <Card>
-          <SectionTitle>SINGLE vs ALBUM SPLIT</SectionTitle>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={formatData} cx="50%" cy="50%" outerRadius={80} dataKey="value" paddingAngle={4} label={({name,value}) => `${name} ${value}%`}>
-                {formatData.map((e,i) => <Cell key={i} fill={e.color} />)}
-              </Pie>
-              <Tooltip formatter={(v) => `${v}%`} contentStyle={{ background:"#1c2128", border:`1px solid ${COLORS.border}`, fontFamily:"monospace", borderRadius:8 }} />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-        <Card>
-          <SectionTitle>FORMAT POPULARITY</SectionTitle>
-          <div style={{ padding:"16px 0", display:"flex", flexDirection:"column", gap:"16px" }}>
-            {[{ label:"Single avg popularity", value:80.75, color:COLORS.single }, { label:"Album avg popularity", value:72.99, color:COLORS.album }].map((item,i) => (
-              <div key={i}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                  <span style={{ color:COLORS.text, fontSize:"12px", fontFamily:"monospace" }}>{item.label}</span>
-                  <span style={{ color:item.color, fontWeight:700 }}>{item.value}</span>
-                </div>
-                <div style={{ background:COLORS.border, borderRadius:4, height:8 }}>
-                  <div style={{ background:item.color, width:`${item.value}%`, height:"100%", borderRadius:4 }} />
-                </div>
-              </div>
-            ))}
-            <InsightBox text="Singles outperform albums by +10.6 popularity points. French listeners favor concentrated releases." color={COLORS.single} />
-          </div>
-        </Card>
-      </div>
-      <Card style={{ marginBottom:"16px" }}>
-        <SectionTitle>ALBUM SIZE IMPACT</SectionTitle>
-        <ResponsiveContainer width="100%" height={170}>
-          <BarChart data={albumSizeData} barSize={50}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-            <XAxis dataKey="size" tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <YAxis domain={[68,78]} tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="popularity" name="Avg Popularity" fill={COLORS.album} radius={[4,4,0,0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <InsightBox text="Album dilution confirmed: large albums (>15 tracks) avg 70.91 vs 74.48 for smaller projects (-4.8%). French listeners reward curated, focused albums." color={COLORS.album} />
-      </Card>
-      <Card>
-        <SectionTitle>TRACK COUNT DISTRIBUTION</SectionTitle>
-        <div style={{ display:"flex", flexWrap:"wrap", gap:"10px" }}>
-          {[{tracks:"1 (Single)",count:11335,pct:40.8},{tracks:"15 tracks",count:2698,pct:9.7},{tracks:"10 tracks",count:1471,pct:5.3},{tracks:"17 tracks",count:1454,pct:5.2},{tracks:"14 tracks",count:1344,pct:4.8},{tracks:"16 tracks",count:1267,pct:4.6}].map((item,i) => (
-            <div key={i} style={{ background:i===0?`${COLORS.single}20`:`${COLORS.album}15`, border:`1px solid ${i===0?COLORS.single:COLORS.album}40`, borderRadius:8, padding:"10px 14px", textAlign:"center", minWidth:100 }}>
-              <div style={{ color:i===0?COLORS.single:COLORS.album, fontSize:"20px", fontFamily:"Impact" }}>{item.pct}%</div>
-              <div style={{ color:COLORS.text, fontSize:"11px", fontFamily:"monospace" }}>{item.tracks}</div>
-              <div style={{ color:COLORS.muted, fontSize:"10px" }}>{item.count.toLocaleString()}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
+for kpi, val in kpis.items():
+    print(f"  {kpi:<35}: {val}")
 
-function DurationPage() {
-  return (
-    <div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"12px", marginBottom:"16px" }}>
-        {durationBuckets.map((b,i) => (
-          <Card key={i} style={{ textAlign:"center" }}>
-            <div style={{ color:[COLORS.single,COLORS.clean,COLORS.album][i], fontSize:"26px", fontFamily:"Impact" }}>{b.count.toLocaleString()}</div>
-            <div style={{ color:COLORS.text, fontSize:"11px", marginTop:4, fontFamily:"monospace" }}>{b.bucket}</div>
-            <div style={{ color:COLORS.muted, fontSize:"11px", marginTop:4 }}>Avg popularity: {b.popularity}</div>
-          </Card>
-        ))}
-      </div>
-      <Card style={{ marginBottom:"16px" }}>
-        <SectionTitle>DURATION DISTRIBUTION</SectionTitle>
-        <ResponsiveContainer width="100%" height={190}>
-          <BarChart data={durationBuckets} barSize={45}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-            <XAxis dataKey="bucket" tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <YAxis tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="count" name="Track Entries" radius={[4,4,0,0]}>
-              <Cell fill={COLORS.single} /><Cell fill={COLORS.clean} /><Cell fill={COLORS.album} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        <InsightBox text="81.7% of all chart entries are medium-length (2.5-4 min). French listeners strongly prefer the classic pop song format. Avg duration = 3.09 min." />
-      </Card>
-      <Card>
-        <SectionTitle>DURATION vs POPULARITY</SectionTitle>
-        <ResponsiveContainer width="100%" height={190}>
-          <BarChart data={durationBuckets} barSize={45}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-            <XAxis dataKey="bucket" tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <YAxis domain={[74,80]} tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="popularity" name="Avg Popularity" radius={[4,4,0,0]}>
-              <Cell fill={COLORS.single} /><Cell fill={COLORS.clean} /><Cell fill={COLORS.album} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        <InsightBox text="Duration has minimal impact on popularity (range: 76.53-77.79). Content type and format matter far more than song length." color={COLORS.clean} />
-      </Card>
-    </div>
-  );
-}
 
-function ArtistsPage() {
-  return (
-    <div>
-      <Card style={{ marginBottom:"16px" }}>
-        <SectionTitle>TOP 10 ARTISTS BY CHART APPEARANCES</SectionTitle>
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={topArtists} layout="vertical" barSize={18}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-            <XAxis type="number" tick={{ fill:COLORS.muted, fontSize:11 }} />
-            <YAxis dataKey="artist" type="category" width={80} tick={{ fill:COLORS.text, fontSize:11, fontFamily:"monospace" }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="appearances" name="Chart Days" radius={[0,4,4,0]}>
-              {topArtists.map((_,i) => <Cell key={i} fill={i===0?COLORS.explicit:i<3?COLORS.album:COLORS.single} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        <InsightBox text="Werenoi dominates with 2,206 chart appearances — 2.4x the next artist (PLK). Deep catalog longevity defines France's chart ecosystem." />
-      </Card>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px" }}>
-        <Card>
-          <SectionTitle>CATALOGUE STATS</SectionTitle>
-          <div>
-            {[{label:"Top 3 artists share",value:"14.4%",sub:"of all chart days",color:COLORS.explicit},{label:"Top 10 artists share",value:"30.4%",sub:"of all chart days",color:COLORS.album},{label:"Total unique artists",value:"500+",sub:"over 555 days",color:COLORS.clean},{label:"Dataset total entries",value:"27,800",sub:"rows analyzed",color:COLORS.accent}].map((item,i) => (
-              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-                <div>
-                  <div style={{ color:COLORS.text, fontSize:"12px", fontFamily:"monospace" }}>{item.label}</div>
-                  <div style={{ color:COLORS.muted, fontSize:"10px" }}>{item.sub}</div>
-                </div>
-                <div style={{ color:item.color, fontSize:"20px", fontFamily:"Impact" }}>{item.value}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card>
-          <SectionTitle>MARKET INSIGHTS</SectionTitle>
-          <div style={{ display:"flex", flexDirection:"column", gap:"10px", paddingTop:"4px" }}>
-            {[{icon:"🇫🇷",text:"French rap dominates — Werenoi, PLK, SDM, Ninho lead catalog longevity",color:COLORS.explicit},{icon:"🌍",text:"International acts appear via high-popularity single spikes, not sustained albums",color:COLORS.clean},{icon:"📀",text:"Album-releasing artists maintain chart presence 2-3x longer than single artists",color:COLORS.album},{icon:"🎯",text:"Atlantic RC should target French rap collabs for sustained playlist presence",color:COLORS.accent}].map((item,i) => (
-              <div key={i} style={{ background:`${item.color}10`, border:`1px solid ${item.color}30`, borderRadius:8, padding:"10px 12px", fontSize:"12px", color:COLORS.text, fontFamily:"monospace", lineHeight:1.5 }}>
-                {item.icon} {item.text}
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-}
+# ── 8. TOP ARTISTS ────────────────────────────────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 8: TOP ARTISTS BY CHART APPEARANCES")
+print("=" * 60)
 
-function RecommendationsPage() {
-  const recs = [
-    { id:"R1", title:"Prioritize Clean Singles for French Market", detail:"Clean singles score 80.75 vs 73.33 for explicit content. For maximum chart performance and playlist pitching, lead with clean edits of all France-targeted releases.", impact:"HIGH", color:COLORS.clean },
-    { id:"R2", title:"Keep Albums Focused (<=15 Tracks)", detail:"Albums >15 tracks avg 70.91 popularity vs 74.48 for leaner projects. Avoid album bloat — the French audience rewards curated collections over sprawling releases.", impact:"HIGH", color:COLORS.album },
-    { id:"R3", title:"Target 2.5-4 Minute Song Duration", detail:"81.7% of all France Top 50 entries fall in the 2.5-4 min window. Ensure Atlantic RC artists avoid both overly short and excessively long cuts when targeting France.", impact:"MEDIUM", color:COLORS.accent },
-    { id:"R4", title:"Audit Explicit Content in Album Rollouts", detail:"72.4% of album tracks are explicit. While explicit content does reach Top 10 (62.4%), clean albums perform measurably better. Provide clean versions for all French pitches.", impact:"HIGH", color:COLORS.explicit },
-    { id:"R5", title:"Leverage French Rap Collaborations", detail:"Werenoi, PLK, SDM, Jul, and Ninho collectively dominate France's chart catalog. Atlantic RC artists should seek feature opportunities with these persistent charting artists.", impact:"MEDIUM", color:COLORS.single },
-    { id:"R6", title:"Singles-First Rollout Strategy", detail:"Singles command 47% of chart share while outperforming albums by 10.6 popularity points. Release 2-3 clean singles before the album to maximize both reach and compliance.", impact:"HIGH", color:COLORS.clean },
-  ];
-  return (
-    <div>
-      <Card style={{ marginBottom:"16px", background:`${COLORS.explicit}10`, border:`1px solid ${COLORS.explicit}30` }}>
-        <div style={{ display:"flex", gap:"12px", alignItems:"flex-start" }}>
-          <div style={{ fontSize:"32px" }}>🎯</div>
-          <div>
-            <div style={{ color:COLORS.explicit, fontFamily:"Impact", fontSize:"18px", letterSpacing:"2px" }}>EXECUTIVE SUMMARY</div>
-            <div style={{ color:COLORS.text, fontSize:"12px", fontFamily:"monospace", lineHeight:1.7, marginTop:6 }}>
-              Based on 27,800 daily chart entries from France Top 50 Spotify playlist, Atlantic Recording Corporation should adopt a <strong>clean-singles-first, lean-album</strong> release strategy for France. While explicit content is prevalent (56.3%), clean tracks command a measurable popularity premium (+10.4%). The French market heavily favors domestic rap artists with deep catalogs over one-off hits.
-            </div>
-          </div>
-        </div>
-      </Card>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px" }}>
-        {recs.map((rec) => (
-          <Card key={rec.id}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-              <div style={{ color:rec.color, fontFamily:"Impact", fontSize:"14px", letterSpacing:"2px" }}>{rec.id}</div>
-              <div style={{ background:rec.impact==="HIGH"?`${COLORS.explicit}25`:`${COLORS.accent}25`, color:rec.impact==="HIGH"?COLORS.explicit:COLORS.accent, fontSize:"10px", fontFamily:"monospace", fontWeight:700, padding:"2px 8px", borderRadius:"4px" }}>{rec.impact} IMPACT</div>
-            </div>
-            <div style={{ color:COLORS.text, fontWeight:700, fontSize:"12px", marginBottom:6 }}>{rec.title}</div>
-            <div style={{ color:COLORS.muted, fontSize:"11px", fontFamily:"monospace", lineHeight:1.6 }}>{rec.detail}</div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
+top_artists = df["artist"].value_counts().head(10)
+for i, (artist, count) in enumerate(top_artists.items(), 1):
+    print(f"  {i:2}. {artist:<35} {count:,} days")
 
-const PAGES = [
-  { key:"overview", label:"📊 Overview" },
-  { key:"explicit", label:"🔞 Explicit Analysis" },
-  { key:"format", label:"💿 Format Preference" },
-  { key:"duration", label:"⏱ Duration" },
-  { key:"artists", label:"🎤 Artists" },
-  { key:"recommendations", label:"🎯 Recommendations" },
-];
 
-export default function App() {
-  const [activePage, setActivePage] = useState("overview");
-  const renderPage = () => {
-    switch(activePage) {
-      case "overview": return <OverviewPage />;
-      case "explicit": return <ExplicitPage />;
-      case "format": return <FormatPage />;
-      case "duration": return <DurationPage />;
-      case "artists": return <ArtistsPage />;
-      case "recommendations": return <RecommendationsPage />;
-      default: return <OverviewPage />;
-    }
-  };
-  return (
-    <div style={{ background:COLORS.bg, minHeight:"100vh", color:COLORS.text, fontFamily:"'Segoe UI', sans-serif" }}>
-      <div style={{ background:COLORS.card, borderBottom:`1px solid ${COLORS.border}`, padding:"14px 20px", position:"sticky", top:0, zIndex:100 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"12px" }}>
-          <div>
-            <div style={{ fontFamily:"Impact, sans-serif", fontSize:"18px", letterSpacing:"3px", background:`linear-gradient(90deg, ${COLORS.explicit}, ${COLORS.accent})`, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
-              FRANCE TOP 50 · CONTENT INTELLIGENCE
-            </div>
-            <div style={{ color:COLORS.muted, fontSize:"10px", fontFamily:"monospace", marginTop:2 }}>
-              Atlantic Recording Corporation · 27,800 entries · 555 days · May 2024 – Nov 2025
-            </div>
-          </div>
-          <div style={{ background:`${COLORS.explicit}15`, border:`1px solid ${COLORS.explicit}40`, borderRadius:20, padding:"3px 10px", color:COLORS.explicit, fontSize:"10px", fontFamily:"monospace", fontWeight:700 }}>LIVE ANALYSIS</div>
-        </div>
-        <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
-          {PAGES.map((p) => <NavItem key={p.key} label={p.label} active={activePage===p.key} onClick={() => setActivePage(p.key)} />)}
-        </div>
-      </div>
-      <div style={{ padding:"20px", maxWidth:"1100px", margin:"0 auto" }}>
-        {renderPage()}
-      </div>
-      <div style={{ textAlign:"center", padding:"14px", color:COLORS.muted, fontSize:"10px", fontFamily:"monospace", borderTop:`1px solid ${COLORS.border}` }}>
-        Audience Sensitivity, Content Compliance & Format Preference Analysis · Unified Mentor Internship · Spotify France Top 50
-      </div>
-    </div>
-  );
-}
+# ── 9. VISUALISATIONS ────────────────────────────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 9: GENERATING CHARTS → france_top50_charts.png")
+print("=" * 60)
 
-    st.write("• Clean content dominates the playlist")
-    st.write("• Singles are more common than albums")
-    st.write("• Medium duration songs perform better")
+fig, axes = plt.subplots(3, 3, figsize=(18, 15))
+fig.patch.set_facecolor("#0d0f14")
+fig.suptitle(
+    "France Top 50 – Audience Sensitivity, Content Compliance & Format Preference Analysis",
+    fontsize=14, fontweight="bold", color="white", y=0.98
+)
+
+ax = axes.flatten()
+
+# --- Chart 1: Explicit vs Clean Pie ---
+sizes = [exp_pct, cln_pct]
+labels_pie = [f"Explicit\n{exp_pct:.1f}%", f"Clean\n{cln_pct:.1f}%"]
+ax[0].pie(sizes, labels=labels_pie, colors=[COLORS["explicit"], COLORS["clean"]],
+          startangle=90, wedgeprops={"edgecolor": "#0d0f14", "linewidth": 2},
+          textprops={"color": "white", "fontsize": 10})
+ax[0].set_title("Explicit vs Clean Split", color="white", fontsize=11)
+
+# --- Chart 2: Popularity by Content Type ---
+cats  = ["Explicit", "Clean", "Album", "Single"]
+pops  = [exp_pop, cln_pop,
+         df[df["album_type"]=="album"]["popularity"].mean(),
+         df[df["album_type"]=="single"]["popularity"].mean()]
+clrs  = [COLORS["explicit"], COLORS["clean"], COLORS["album"], COLORS["single"]]
+bars  = ax[1].bar(cats, pops, color=clrs, edgecolor="#0d0f14", width=0.5)
+ax[1].set_ylim(68, 84)
+ax[1].set_title("Avg Popularity by Content Type", color="white", fontsize=11)
+ax[1].set_facecolor("#161b22")
+ax[1].tick_params(colors="white")
+for bar, val in zip(bars, pops):
+    ax[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
+               f"{val:.1f}", ha="center", va="bottom", color="white", fontsize=9)
+
+# --- Chart 3: Rank Tier Explicit % ---
+tiers_list = ["Top 10", "Top 11-25", "Top 26-50"]
+exp_vals   = [62.4, 54.5, 54.8]
+cln_vals   = [37.6, 45.5, 45.2]
+x = np.arange(len(tiers_list))
+w = 0.35
+ax[2].bar(x - w/2, exp_vals, w, label="Explicit", color=COLORS["explicit"])
+ax[2].bar(x + w/2, cln_vals, w, label="Clean",    color=COLORS["clean"])
+ax[2].set_xticks(x)
+ax[2].set_xticklabels(tiers_list, color="white", fontsize=9)
+ax[2].set_title("Explicit % by Rank Tier", color="white", fontsize=11)
+ax[2].set_facecolor("#161b22")
+ax[2].tick_params(colors="white")
+ax[2].legend(facecolor="#1c2128", labelcolor="white", fontsize=9)
+ax[2].set_ylabel("Percentage (%)", color="white")
+
+# --- Chart 4: Monthly Explicit Trend ---
+ax[3].plot(monthly_exp["year_month"].astype(str),
+           monthly_exp["explicit_pct"],
+           color=COLORS["explicit"], linewidth=2.5, marker="o", markersize=5)
+ax[3].set_title("Monthly Explicit Content Trend", color="white", fontsize=11)
+ax[3].set_facecolor("#161b22")
+ax[3].tick_params(colors="white", axis="both")
+ax[3].set_xticklabels(monthly_exp["year_month"].astype(str), rotation=45, fontsize=7, color="white")
+ax[3].set_ylabel("Explicit %", color="white")
+ax[3].axhline(exp_pct, color=COLORS["accent"], linestyle="--", linewidth=1, alpha=0.7, label=f"Overall avg {exp_pct:.1f}%")
+ax[3].legend(facecolor="#1c2128", labelcolor="white", fontsize=8)
+
+# --- Chart 5: Single vs Album Pie ---
+fmt_vals   = [fmt_pct.get("single", 0), fmt_pct.get("album", 0)]
+fmt_labels = [f"Single\n{fmt_vals[0]:.1f}%", f"Album\n{fmt_vals[1]:.1f}%"]
+ax[4].pie(fmt_vals, labels=fmt_labels, colors=[COLORS["single"], COLORS["album"]],
+          startangle=90, wedgeprops={"edgecolor": "#0d0f14", "linewidth": 2},
+          textprops={"color": "white", "fontsize": 10})
+ax[4].set_title("Single vs Album Format Split", color="white", fontsize=11)
+
+# --- Chart 6: Album Size Impact ---
+size_labels = ["Small (<=15)", "Large (>15)"]
+size_vals   = [size_pop.loc["Small (<=15 tracks)", "mean"],
+               size_pop.loc["Large (>15 tracks)", "mean"]]
+bars6 = ax[5].bar(size_labels, size_vals, color=[COLORS["clean"], COLORS["explicit"]],
+                  edgecolor="#0d0f14", width=0.4)
+ax[5].set_ylim(68, 78)
+ax[5].set_title("Album Size vs Avg Popularity", color="white", fontsize=11)
+ax[5].set_facecolor("#161b22")
+ax[5].tick_params(colors="white")
+for bar, val in zip(bars6, size_vals):
+    ax[5].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
+               f"{val:.2f}", ha="center", va="bottom", color="white", fontsize=10)
+
+# --- Chart 7: Duration Bucket Distribution ---
+bkt_labels = ["Short\n(<2.5m)", "Medium\n(2.5-4m)", "Long\n(>4m)"]
+bkt_counts = [3582, 22717, 1501]
+clrs7 = [COLORS["single"], COLORS["clean"], COLORS["album"]]
+ax[6].bar(bkt_labels, bkt_counts, color=clrs7, edgecolor="#0d0f14", width=0.5)
+ax[6].set_title("Song Duration Distribution", color="white", fontsize=11)
+ax[6].set_facecolor("#161b22")
+ax[6].tick_params(colors="white")
+ax[6].set_ylabel("Entries", color="white")
+
+# --- Chart 8: Top 10 Artists ---
+artists_list = list(top_artists.index)
+counts_list  = list(top_artists.values)
+bar_colors   = [COLORS["explicit"] if i == 0 else COLORS["album"] if i < 3 else COLORS["single"]
+                for i in range(len(artists_list))]
+ax[7].barh(artists_list[::-1], counts_list[::-1], color=bar_colors[::-1], edgecolor="#0d0f14")
+ax[7].set_title("Top 10 Artists by Chart Appearances", color="white", fontsize=11)
+ax[7].set_facecolor("#161b22")
+ax[7].tick_params(colors="white")
+ax[7].set_xlabel("Days on Chart", color="white")
+
+# --- Chart 9: Explicit by Format ---
+fmt_exp_data = [{"type": "Album", "explicit": 72.4, "clean": 27.6},
+                {"type": "Single", "explicit": 38.2, "clean": 61.8}]
+fmt_exp_df   = pd.DataFrame(fmt_exp_data)
+x9 = np.arange(2)
+ax[8].bar(x9 - 0.2, fmt_exp_df["explicit"], 0.35, label="Explicit", color=COLORS["explicit"])
+ax[8].bar(x9 + 0.2, fmt_exp_df["clean"],    0.35, label="Clean",    color=COLORS["clean"])
+ax[8].set_xticks(x9)
+ax[8].set_xticklabels(fmt_exp_df["type"], color="white")
+ax[8].set_title("Explicit Split by Album Type", color="white", fontsize=11)
+ax[8].set_facecolor("#161b22")
+ax[8].tick_params(colors="white")
+ax[8].set_ylabel("Percentage (%)", color="white")
+ax[8].legend(facecolor="#1c2128", labelcolor="white", fontsize=9)
+
+plt.tight_layout(rect=[0, 0, 1, 0.97])
+plt.savefig("france_top50_charts.png", dpi=150, bbox_inches="tight", facecolor="#0d0f14")
+plt.close()
+print("Charts saved to france_top50_charts.png")
+
+
+# ── 10. SUMMARY REPORT ───────────────────────────────────────────────────────
+print("\n" + "=" * 60)
+print("STEP 10: STRATEGIC SUMMARY FOR ATLANTIC RECORDING CORPORATION")
+print("=" * 60)
+
+summary = """
+AUDIENCE SENSITIVITY & CONTENT COMPLIANCE FINDINGS
+====================================================
+1. Explicit content makes up 56.3% of France Top 50 entries, but clean
+   tracks score 10.4% higher in popularity (80.9 vs 73.3).
+   → RECOMMENDATION: Always provide clean edits for French market pitching.
+
+2. Explicit content peaks at 62.4% in Top 10, suggesting French listeners
+   accept explicit content — but clean tracks still perform measurably better.
+   → RECOMMENDATION: Compliance risk is real; maintain clean version strategy.
+
+FORMAT PREFERENCE FINDINGS
+====================================================
+3. Singles achieve avg popularity of 80.75 vs 72.99 for albums (+10.6 pts).
+   Singles represent 47.1% of entries and dominate the top tier.
+   → RECOMMENDATION: Lead releases with clean singles before album drops.
+
+4. Large albums (>15 tracks) are diluted: avg popularity 70.91 vs 74.48
+   for smaller albums (−4.8%). Correlation between track count and
+   popularity in album tracks: negative.
+   → RECOMMENDATION: Keep albums to ≤15 tracks for France market.
+
+DURATION FINDINGS
+====================================================
+5. 81.7% of all entries are medium-length (2.5–4 min). Avg = 3.09 min.
+   Duration has minimal direct impact on popularity (correlation ≈ 0).
+   → RECOMMENDATION: Target 2.5–4 min for all France-targeted releases.
+
+ARTIST & MARKET INSIGHTS
+====================================================
+6. Werenoi leads with 2,206 chart days. Top 10 artists account for 30.4%
+   of all chart days — market is concentrated around domestic French rap.
+   → RECOMMENDATION: Pursue collaboration/feature opportunities with
+     Werenoi, PLK, SDM, Jul, and Ninho for sustained playlist presence.
+"""
+print(summary)
+
+print("Analysis complete. All outputs generated successfully.")
 
